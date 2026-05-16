@@ -83,7 +83,7 @@ public class SeatService {
 
     private SeatDTO convertToDTO(Seat seat) {
         return SeatDTO.builder()
-                .id(seat.getId())
+                .id(seat.getSetKey())
                 .rowLabel(seat.getRowLabel())
                 .seatNumber(seat.getSeatNumber())
                 .status(seat.getStatus())

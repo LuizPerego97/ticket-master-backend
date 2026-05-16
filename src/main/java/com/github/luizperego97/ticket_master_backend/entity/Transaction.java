@@ -1,6 +1,5 @@
 package com.github.luizperego97.ticket_master_backend.entity;
 
-
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -16,16 +15,17 @@ import lombok.NoArgsConstructor;
 public class Transaction {
 
     @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "TRN_KEY")
-    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "trn_seq")
-    @SequenceGenerator(name = "trn_seq", sequenceName = "TRANSACTION_SEQ", allocationSize = 1)
-    private Long id;
+    private Long trnKey;
 
+    // Relacionamento com o Cliente especificando a coluna de destino
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "CTR_KEY", nullable = false)
+    @JoinColumn(name = "CTR_KEY", referencedColumnName = "CTR_KEY", nullable = false)
     private Customer customer;
 
+    // Relacionamento com o Assento especificando a coluna de destino
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "SEAT_KEY", nullable = false)
+    @JoinColumn(name = "SET_KEY", referencedColumnName = "SET_KEY", nullable = false)
     private Seat seat;
 }

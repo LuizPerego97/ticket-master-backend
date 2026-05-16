@@ -64,7 +64,7 @@ public class CustomerService {
     // Conversor manual de Entidade para DTO
     private CustomerDTO convertToDTO(Customer customer) {
         return CustomerDTO.builder()
-                .id(customer.getId())
+                .id(customer.getCtrKey())
                 .name(customer.getName())
                 .entryDate(customer.getEntryDate())
                 .build();
