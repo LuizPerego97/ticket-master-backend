@@ -9,6 +9,8 @@ import com.github.luizperego97.ticket_master_backend.entity.Transaction;
 import com.github.luizperego97.ticket_master_backend.repository.CustomerRepository;
 import com.github.luizperego97.ticket_master_backend.repository.SeatRepository;
 import com.github.luizperego97.ticket_master_backend.repository.TransactionRepository;
+import com.github.luizperego97.ticket_master_backend.service.kafka.TicketProducerService;
+import com.github.luizperego97.shared_core.exception.ResourceNotFoundException; // Importado do shared_core
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,6 +25,7 @@ public class TransactionService {
     private final TransactionRepository transactionRepository;
     private final SeatRepository seatRepository;
     private final CustomerRepository customerRepository;
+    private final TicketProducerService ticketProducerService;
 
     @Transactional(readOnly = true)
     public List<TransactionDTO> getAll() {
@@ -37,33 +40,41 @@ public class TransactionService {
         return convertToDTO(transaction);
     }
 
-    // 3. THE ACID TRANSACTION WITH PESSIMISTIC LOCK
     @Transactional
-    public TransactionDTO save(TransactionDTO dto) {
-        // Passo 1: Buscar a entidade pura do Cliente pelo ID vindo do DTO
+    public TransactionDTO processTransactionAndConsumeKafka(TransactionDTO dto) {
         Customer customer = customerRepository.findById(dto.getCustomerId())
-                .orElseThrow(() -> new RuntimeException("Customer not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Customer not found"));
 
-        // Passo 2: Buscar o assento aplicando o Lock Pessimista direto no Oracle (Garante o ISOLAMENTO)
-        Seat seat = seatRepository.findByIdWithLock(dto.getSeatId())
-                .orElseThrow(() -> new RuntimeException("Seat not found."));
+        try {
+            // Passo 2: Buscar o assento aplicando o Lock Pessimista usando a exceção do Core
+            Seat seat = seatRepository.findByIdWithLock(dto.getSeatId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Seat not found"));
 
-        // Passo 3: Validar se o assento já não está ocupado (Garante a CONSISTÊNCIA)
-        if (seat.getStatus() == 1) { // 1 = OCCUPIED
-            throw new RuntimeException("Seat is already occupied by another user.");
+            // Passo 3: Validar se o assento já não está ocupado (Regra de Negócio -> IllegalState)
+            if (seat.getStatus() == 1) {
+                throw new IllegalStateException("Seat is already occupied by another user.");
+            }
+
+            seat.setStatus(1);
+            seatRepository.save(seat);
+
+            Transaction transaction = Transaction.builder()
+                    .customer(customer)
+                    .seat(seat)
+                    .build();
+
+            Transaction savedTransaction = transactionRepository.save(transaction);
+            TransactionDTO savedDto = convertToDTO(savedTransaction);
+
+            String mesageKafka = "Transação realizada com sucesso !";
+            ticketProducerService.sendTicketPurchasedEvent(mesageKafka);
+
+            return savedDto;
+
+        } catch (org.springframework.dao.PessimisticLockingFailureException e) {
+            // Falha no Lock Pessimista (Concorrência -> IllegalState)
+            throw new IllegalStateException("The seat is temporarily locked by another user. Please try again in a few moments.");
         }
-
-        seat.setStatus(1);
-        seatRepository.save(seat);
-
-        Transaction transaction = Transaction.builder()
-                .customer(customer)
-                .seat(seat)
-                .build();
-
-        Transaction savedTransaction = transactionRepository.save(transaction);
-
-        return convertToDTO(savedTransaction);
     }
 
     @Transactional
@@ -78,7 +89,7 @@ public class TransactionService {
 
     private Transaction getEntityById(Long id) {
         return transactionRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Transaction not found."));
+                .orElseThrow(() -> new ResourceNotFoundException("Transaction not found"));
     }
 
     private TransactionDTO convertToDTO(Transaction transaction) {

@@ -3,6 +3,7 @@ package com.github.luizperego97.ticket_master_backend.service;
 import com.github.luizperego97.ticket_master_backend.dto.CustomerDTO;
 import com.github.luizperego97.ticket_master_backend.entity.Customer;
 import com.github.luizperego97.ticket_master_backend.repository.CustomerRepository;
+import com.github.luizperego97.shared_core.exception.ResourceNotFoundException; // Importado do shared_core
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -58,10 +59,9 @@ public class CustomerService {
 
     private Customer getEntityById(Long id) {
         return customerRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Customer not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Customer not found"));
     }
 
-    // Conversor manual de Entidade para DTO
     private CustomerDTO convertToDTO(Customer customer) {
         return CustomerDTO.builder()
                 .id(customer.getCtrKey())

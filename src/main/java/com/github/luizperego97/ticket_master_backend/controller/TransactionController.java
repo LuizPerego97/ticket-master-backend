@@ -1,7 +1,6 @@
 package com.github.luizperego97.ticket_master_backend.controller;
 
 import com.github.luizperego97.ticket_master_backend.dto.TransactionDTO;
-import com.github.luizperego97.ticket_master_backend.service.TicketProducerService;
 import com.github.luizperego97.ticket_master_backend.service.TransactionService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -17,8 +16,6 @@ import java.util.List;
 public class TransactionController {
 
     private final TransactionService transactionService;
-    private final TicketProducerService ticketProducerService; // <-- Adicione essa linha (Lombok injeta automático)
-
 
     @GetMapping
     public ResponseEntity<List<TransactionDTO>> getAll() {
@@ -34,14 +31,7 @@ public class TransactionController {
 
     @PostMapping
     public ResponseEntity<TransactionDTO> create(@Valid @RequestBody TransactionDTO transactionDTO) {
-        // 1. O ACID garante a persistência segura no Oracle aqui dentro:
-        TransactionDTO newTransaction = transactionService.save(transactionDTO);
-
-        // 2. Transação concluída e salva? Disparamos o evento para o Kafka!
-        String mensagemKafka = "Transação realizada com sucesso! ID: " + newTransaction.getId();
-        ticketProducerService.enviarEventoIngressoComprado(mensagemKafka);
-
-        // 3. Devolve a resposta para o cliente (Postman/Frontend)
+        TransactionDTO newTransaction = transactionService.processTransactionAndConsumeKafka(transactionDTO);
         return ResponseEntity.status(HttpStatus.CREATED).body(newTransaction);
     }
 

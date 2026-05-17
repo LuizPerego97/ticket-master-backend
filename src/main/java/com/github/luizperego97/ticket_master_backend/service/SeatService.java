@@ -3,6 +3,7 @@ package com.github.luizperego97.ticket_master_backend.service;
 import com.github.luizperego97.ticket_master_backend.dto.SeatDTO;
 import com.github.luizperego97.ticket_master_backend.entity.Seat;
 import com.github.luizperego97.ticket_master_backend.repository.SeatRepository;
+import com.github.luizperego97.shared_core.exception.ResourceNotFoundException; // Importado do shared_core
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -59,26 +60,26 @@ public class SeatService {
     }
 
     @Transactional
-    public void reserve(Long seatId) {
+    public void booking(Long seatId) {
         try {
             Seat seat = seatRepository.findByIdWithLock(seatId)
-                    .orElseThrow(() -> new RuntimeException("Seat not found."));
+                    .orElseThrow(() -> new ResourceNotFoundException("Seat not found"));
 
             if (seat.getStatus() == 1) {
-                throw new RuntimeException("This seat is already taken!");
+                throw new IllegalStateException("This seat is already taken!");
             }
 
             seat.setStatus(1);
             seatRepository.save(seat);
 
         } catch (org.springframework.dao.PessimisticLockingFailureException e) {
-            throw new RuntimeException("The seat is temporarily locked by another user. Please try again in a few moments.");
+            throw new IllegalStateException("The seat is temporarily locked by another user. Please try again in a few moments.");
         }
     }
 
     private Seat getEntityById(Long id) {
         return seatRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Seat not found."));
+                .orElseThrow(() -> new ResourceNotFoundException("Seat not found"));
     }
 
     private SeatDTO convertToDTO(Seat seat) {

@@ -1,4 +1,4 @@
-package com.github.luizperego97.ticket_master_backend.service;
+package com.github.luizperego97.ticket_master_backend.service.kafka;
 
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
@@ -14,7 +14,7 @@ public class TicketProducerService {
         this.kafkaTemplate = kafkaTemplate;
     }
 
-    public void enviarEventoIngressoComprado(String mensagem) {
+    public void sendTicketPurchasedEvent(String mensagem) {
         // O "tópico" é como se fosse o canal de TV onde vamos transmitir a notícia
         String topico = "ingresso-comprado-topic";
 
